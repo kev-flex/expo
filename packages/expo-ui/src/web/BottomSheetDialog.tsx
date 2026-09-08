@@ -75,6 +75,14 @@ function dismissBelowHeight(startHeight: number, minSnapHeight?: number): number
   return startHeight * CLOSE_HEIGHT_FRACTION;
 }
 
+function commitDragToHeight(sheet: HTMLElement, nextHeight: number) {
+  sheet.style.transition = 'none';
+  sheet.style.transform = REST_TRANSFORM;
+  sheet.style.height = `${nextHeight}px`;
+  sheet.getBoundingClientRect();
+  sheet.style.transition = '';
+}
+
 function asHTMLElement(value: unknown): HTMLElement | null {
   return value instanceof HTMLElement ? value : null;
 }
@@ -395,11 +403,13 @@ export function BottomSheetDialog({
   const resolveStartHeightRef = useRef(resolveStartHeight);
   const minSnapHeightRef = useRef(minSnapHeight);
   const dismissibleRef = useRef(dismissible);
+  const heightRef = useRef(height);
   commitCloseRef.current = commitClose;
   onDragEndRef.current = onDragEnd;
   resolveStartHeightRef.current = resolveStartHeight;
   minSnapHeightRef.current = minSnapHeight;
   dismissibleRef.current = dismissible;
+  heightRef.current = height;
 
   useEffect(() => {
     if (!open || !mounted) return;
@@ -467,9 +477,15 @@ export function BottomSheetDialog({
       const closeBelow = dismissBelowHeight(drag.startHeight, minSnapHeightRef.current);
       if (dismissibleRef.current && predicted < closeBelow) {
         // Keep the sheet short so the close animation starts from the drag position.
+        commitDragToHeight(sheet, Math.max(predicted, 1));
         setDragVisual({ live: false, translateY: 0, height: Math.max(predicted, 1) });
         commitCloseRef.current();
         return;
+      }
+      if (heightRef.current != null) {
+        // Sized/snap sheets: turn the drag offset into height before React
+        // snaps, so the transform does not animate back to the old detent.
+        commitDragToHeight(sheet, predicted);
       }
       setDragVisual(null);
       onDragEndRef.current?.(predicted);

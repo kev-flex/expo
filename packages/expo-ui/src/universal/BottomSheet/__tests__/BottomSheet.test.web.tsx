@@ -120,6 +120,30 @@ describe('BottomSheet', () => {
     expect(screen.getByTestId('expo-ui-bottom-sheet').style.height).toBe('200px');
   });
 
+  it('should snap down after dragging from a taller snap', async () => {
+    render(
+      <BottomSheet isPresented onDismiss={() => {}} snapPoints={[{ height: 200 }, { height: 500 }]}>
+        <Text>Snap sheet</Text>
+      </BottomSheet>
+    );
+
+    const panel = await waitFor(() => screen.getByTestId('expo-ui-bottom-sheet'));
+    act(() => {
+      dispatchPointer(panel, 'pointerdown', { pointerId: 1, clientY: 400, button: 0 });
+      dispatchPointer(window, 'pointermove', { pointerId: 1, clientY: 100 });
+      dispatchPointer(window, 'pointerup', { pointerId: 1, clientY: 100 });
+    });
+    expect(panel.style.height).toBe('500px');
+
+    act(() => {
+      dispatchPointer(panel, 'pointerdown', { pointerId: 1, clientY: 100, button: 0 });
+      dispatchPointer(window, 'pointermove', { pointerId: 1, clientY: 400 });
+      dispatchPointer(window, 'pointerup', { pointerId: 1, clientY: 400 });
+    });
+
+    expect(panel.style.height).toBe('200px');
+  });
+
   it('should clamp the snap index when snapPoints shrinks', async () => {
     const { rerender } = render(
       <BottomSheet isPresented onDismiss={() => {}} snapPoints={[{ height: 200 }, { height: 500 }]}>

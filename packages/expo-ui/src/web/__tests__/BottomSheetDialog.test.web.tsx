@@ -383,6 +383,43 @@ describe('BottomSheetDialog drag cancel', () => {
     expect(panel.style.transform).toContain('translateY(80px)');
   });
 
+  it('should snap height from the drag position instead of returning to the start height', async () => {
+    const onDragEnd = jest.fn();
+    const { rerender } = render(
+      <BottomSheetDialog
+        open
+        onOpenChange={() => {}}
+        onDragEnd={onDragEnd}
+        height={500}
+        minSnapHeight={200}>
+        <Text>Body</Text>
+      </BottomSheetDialog>
+    );
+
+    const panel = await waitFor(() => screen.getByTestId('expo-ui-bottom-sheet'));
+    act(() => {
+      dispatchPointer(panel, 'pointerdown', { pointerId: 1, clientY: 100, button: 0 });
+      dispatchPointer(window, 'pointermove', { pointerId: 1, clientY: 400 });
+      dispatchPointer(window, 'pointerup', { pointerId: 1, clientY: 400 });
+    });
+
+    expect(onDragEnd).toHaveBeenCalledWith(200);
+    rerender(
+      <BottomSheetDialog
+        open
+        onOpenChange={() => {}}
+        onDragEnd={onDragEnd}
+        height={200}
+        minSnapHeight={200}>
+        <Text>Body</Text>
+      </BottomSheetDialog>
+    );
+    expect(panel.style.transform === '' || panel.style.transform.includes('translateY(0)')).toBe(
+      true
+    );
+    expect(panel.style.height).toBe('200px');
+  });
+
   it('should dismiss a sheet without snap points after dragging past half its height', async () => {
     const onOpenChange = jest.fn();
     render(
