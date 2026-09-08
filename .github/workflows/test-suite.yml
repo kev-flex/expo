@@ -314,6 +314,16 @@ jobs:
         env:
           MAESTRO_CLI_NO_ANALYTICS: 1
         timeout-minutes: 40
+      - name: 🤖 Run agent-device e2e scripts (bare-expo)
+        # Non-blocking while the agent-device suite collects a flake baseline. The Maestro step
+        # above leaves the simulator booted and the app installed.
+        if: always()
+        continue-on-error: true
+        run: |
+          npm install -g agent-device@0.20.10
+          ./e2e/run-agent-device.sh ios auto ~/agentDeviceArtifacts
+        working-directory: apps/bare-expo
+        timeout-minutes: 20
       - name: 📦 Prepare testing artifacts
         if: always()
         run: |
@@ -328,6 +338,7 @@ jobs:
           path: |
             ~/maestroArtifacts/tests/**/*
             ~/Library/Logs/maestro/**/*
+            ~/agentDeviceArtifacts/**/*
           overwrite: true
       - name: 🔗 Artifacts download URL
         if: always()
@@ -505,7 +516,13 @@ jobs:
             mkdir -p ~/.maestro/tests
             LOG=~/.maestro/tests/screenshot-server-logs-$(date +%s); ./e2e/image-comparison/src/server.ts > "$LOG" 2>&1 & echo $! > /tmp/image-server.pid; sleep 2; kill -0 $(cat /tmp/image-server.pid) 2>/dev/null || { echo "Image comparison server failed to start. Logs:"; cat "$LOG"; exit 1; }
             # Run the actual tests
-            ./scripts/start-android-e2e-test.ts --test
+            maestro_status=0
+            ./scripts/start-android-e2e-test.ts --test || maestro_status=$?
+            # agent-device scripts are non-blocking while they collect a flake baseline. They must
+            # run inside this action because the emulator only lives for its duration.
+            npm install -g agent-device@0.20.10
+            ./e2e/run-agent-device.sh android auto ~/agentDeviceArtifacts || echo "agent-device suite failed (non-blocking)"
+            exit $maestro_status
           working-directory: ./apps/bare-expo
       - name: 📦 Prepare testing artifacts
         if: always()
@@ -520,6 +537,7 @@ jobs:
           name: bare-expo-artifacts-android
           path: |
             ~/maestroArtifacts/tests/**/*
+            ~/agentDeviceArtifacts/**/*
           overwrite: true
       - name: 🔗 Artifacts download URL
         if: always()
